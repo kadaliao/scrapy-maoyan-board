@@ -57,7 +57,12 @@ class MaoyanSpider(scrapy.Spider):
             movie = response.meta['movie']
             # '\uee6d\uee6d.\ue59b'
 
-            movie['score'] = ''.join([font_code2num[i] for i in movie['score']])
+            print(movie)
+
+            # movie['score'] = ''.join([font_code2num[i] for i in movie['score']])
+
+            if movie['score']:
+                movie['score'] = ''.join([font_code2num[i] for i in movie['score']])
 
             movie_item = MovieItem(**movie)
             yield movie_item
@@ -79,20 +84,40 @@ class MaoyanSpider(scrapy.Spider):
 
             movies.append(movie)
 
-            # yield scrapy.Request(movie['link'], callback=self.parse_movie, meta={'movie': movie})
-
         if font_link in self.font_dict:
-            pass
+            self.process_board(meta={'movies': movies, 'font_code2num': self.font_dict[font_link]})
         else:
             yield scrapy.Request(font_link, callback=self.parse_font, meta={'movies': movies, 'task_name': 'board'},
                                  dont_filter=True)
 
     def parse_movie(self, response):
         movie = response.meta['movie']
-        movie['score'] = response.css('.score .stonefont::text').extract_first()
+        # movie['score'] = response.css('.score .stonefont::text').extract_first()
+        movie['score'] = response.css('.movie-index .score .stonefont::text').extract_first()
 
         font_link = self.extract_font_link(response.text)
         # print(font_link)
 
+        if font_link in self.font_dict:
+            return self.process_movie(meta={'movie': movie, 'font_code2num': self.font_dict[font_link]})
+
         yield scrapy.Request(font_link, callback=self.parse_font, meta={'task_name': 'movie', 'movie': movie},
                              dont_filter=True)
+
+    def process_movie(self, meta):
+        movie = meta['movie']
+        font_code2num = meta['font_code2num']
+        # '\uee6d\uee6d.\ue59b'
+        if movie['score']:
+            movie['score'] = ''.join([font_code2num[i] for i in movie['score']])
+
+        movie_item = MovieItem(**movie)
+        yield movie_item
+
+    def process_board(self, meta):
+        movies = meta['movies']
+        font_code2num = meta['font_code2num']
+        for movie in movies:
+            movie['boxoffice_realtime'] = ''.join([font_code2num[i] for i in movie['boxoffice_realtime']])
+            movie['boxoffice_total'] = ''.join([font_code2num[i] for i in movie['boxoffice_total']])
+            yield scrapy.Request(movie['link'], callback=self.parse_movie, meta={'movie': movie})
