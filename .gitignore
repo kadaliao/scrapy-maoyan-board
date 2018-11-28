@@ -1,8 +1,8 @@
 .venv/
 .idea/
 
-*.pyc
-*.pyo
+*/.*.pyc
+*/*.pyo
 build/
 dist/
 
